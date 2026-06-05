@@ -16,3 +16,4 @@ export const eventFillsKey = (eventId: string) => `pushups:event:${eventId}:fill
 export const marketKey = (marketId: string) => `pushups:market:${marketId}`; // BookDoc
 export const tapeKey = () => `pushups:tape`; // list of TapeEntry JSON (capped)
 export const resetKey = (token: string) => `pushups:reset:${token}`;
+export const namesKey = () => `pushups:names`; // hash userId → displayName (poll-path cache)

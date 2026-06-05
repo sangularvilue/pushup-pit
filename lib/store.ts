@@ -7,6 +7,7 @@ import {
   eventMarketsKey,
   eventsKey,
   marketKey,
+  namesKey,
   redis,
   tapeKey,
 } from "./redis";
@@ -115,7 +116,9 @@ async function saveBook(book: BookDoc): Promise<void> {
 export async function listBooks(eventId: string): Promise<BookDoc[]> {
   const ids = await redis.smembers(eventMarketsKey(eventId));
   if (!ids || ids.length === 0) return [];
-  const books = (await Promise.all(ids.map((id) => getBook(id)))).filter(Boolean) as BookDoc[];
+  // one MGET instead of N GETs — this runs on every 4s poll
+  const raw = await redis.mget<(BookDoc | string | null)[]>(...ids.map(marketKey));
+  const books = raw.map((r) => parse<BookDoc>(r)).filter(Boolean) as BookDoc[];
   const order: Record<Kind, number> = { future: 0, call: 1, put: 2, straddle: 3 };
   books.sort(
     (a, b) =>
@@ -407,14 +410,37 @@ async function recordFills(ev: PitEvent, market: Market, fills: Fill[]): Promise
 
 /* ── display-name resolution for API payloads ───────────────── */
 
+/**
+ * userId → displayName via the `pushups:names` hash: one HMGET on the hot
+ * poll path instead of two GETs per user. Misses fall back to the user
+ * records and are written back to the hash.
+ */
 export async function resolveNames(userIds: string[]): Promise<Record<string, string>> {
   const unique = [...new Set(userIds)];
+  if (unique.length === 0) return {};
   const out: Record<string, string> = {};
-  await Promise.all(
-    unique.map(async (id) => {
-      const u = await getUserById(id);
-      out[id] = u?.displayName || "unknown";
-    })
-  );
+  const cached = await redis.hmget<Record<string, string>>(namesKey(), ...unique);
+  const missing: string[] = [];
+  for (const id of unique) {
+    const name = cached?.[id];
+    if (name) out[id] = name;
+    else missing.push(id);
+  }
+  if (missing.length) {
+    const found: Record<string, string> = {};
+    await Promise.all(
+      missing.map(async (id) => {
+        const u = await getUserById(id);
+        out[id] = u?.displayName || "unknown";
+        if (u?.displayName) found[id] = u.displayName;
+      })
+    );
+    if (Object.keys(found).length) await redis.hset(namesKey(), found);
+  }
   return out;
+}
+
+/** Keep the poll-path name cache in sync whenever a display name is set. */
+export async function cacheDisplayName(userId: string, displayName: string): Promise<void> {
+  await redis.hset(namesKey(), { [userId]: displayName });
 }

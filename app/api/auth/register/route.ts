@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { redis, userByIdKey, userKey } from "@/lib/redis";
 import { createSession, hashPassword, type StoredUser } from "@/lib/auth";
+import { cacheDisplayName } from "@/lib/store";
 
 export const runtime = "nodejs";
 
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
     };
     await redis.set(userKey(emailLower), JSON.stringify(user));
     await redis.set(userByIdKey(user.id), emailLower);
+    await cacheDisplayName(user.id, user.displayName);
     await createSession(user.id);
     return NextResponse.json({
       user: { id: user.id, email: user.email, displayName: user.displayName },
