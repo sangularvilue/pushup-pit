@@ -135,6 +135,8 @@ export interface SeedQuote {
 /** Market-maker obligation for new derivative markets. */
 export const SEED_MIN_QTY = 5;
 export const SEED_MAX_WIDTH = 5;
+/** Opening quotes must stand this long before the creator can pull them. */
+export const SEED_LOCK_MS = 5 * 60 * 1000;
 
 export async function createMarket(
   eventId: string,
@@ -180,10 +182,11 @@ export async function createMarket(
     createdAt: Date.now(),
   };
   const now = Date.now();
+  const lockUntil = now + SEED_LOCK_MS;
   const orders: Order[] = seed
     ? [
-        { id: uuid(), marketId: market.id, userId: createdBy, side: "bid", price: seed.bidPrice, qty: seed.bidQty, ts: now },
-        { id: uuid(), marketId: market.id, userId: createdBy, side: "offer", price: seed.offerPrice, qty: seed.offerQty, ts: now },
+        { id: uuid(), marketId: market.id, userId: createdBy, side: "bid", price: seed.bidPrice, qty: seed.bidQty, ts: now, lockUntil },
+        { id: uuid(), marketId: market.id, userId: createdBy, side: "offer", price: seed.offerPrice, qty: seed.offerQty, ts: now, lockUntil },
       ]
     : [];
   await saveBook({ market, orders });
@@ -311,6 +314,13 @@ export async function cancelOrder(
   const order = book.orders.find((o) => o.id === orderId);
   if (!order) return { ok: false, error: "Order already gone." };
   if (order.userId !== userId) return { ok: false, error: "Not your order." };
+  if (order.lockUntil && Date.now() < order.lockUntil) {
+    const secs = Math.ceil((order.lockUntil - Date.now()) / 1000);
+    return {
+      ok: false,
+      error: `Opening quotes stand for 5 minutes — ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")} to go.`,
+    };
+  }
   book.orders = book.orders.filter((o) => o.id !== orderId);
   await saveBook(book);
   return { ok: true };

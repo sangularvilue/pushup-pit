@@ -57,6 +57,8 @@ export interface Order {
   price: number;
   qty: number;
   ts: number;
+  /** Opening quotes must stand: no cancellation before this time. */
+  lockUntil?: number;
 }
 
 /** One market's book document, stored as a single Redis value. */

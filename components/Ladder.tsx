@@ -90,6 +90,7 @@ export default function Ladder({
   }, [book.market.id, levels, anchor]);
 
   const nameOf = (id: string) => (id === me ? "you" : names[id] || "?");
+  const now = Date.now(); // re-evaluated every poll re-render; lock expiry shows within seconds
 
   function click(side: OrderSide, price: number) {
     if (disabled || busy) return;
@@ -124,18 +125,29 @@ export default function Ladder({
                   <span key={o.id} className={`order-chip bid-chip${o.userId === me ? " mine" : ""}`}>
                     {nameOf(o.userId)}
                     {o.qty !== 1 && <span style={{ opacity: 0.65 }}>×{fmtNum(o.qty)}</span>}
-                    {o.userId === me && !disabled && (
-                      <button
-                        className="x"
-                        title="Pull this order"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onCancel(o.id);
-                        }}
-                      >
-                        ✕
-                      </button>
-                    )}
+                    {o.userId === me &&
+                      !disabled &&
+                      (o.lockUntil && o.lockUntil > now ? (
+                        <span
+                          className="x"
+                          style={{ cursor: "not-allowed" }}
+                          title={`Opening quote — stands until ${new Date(o.lockUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          ⏱
+                        </span>
+                      ) : (
+                        <button
+                          className="x"
+                          title="Pull this order"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCancel(o.id);
+                          }}
+                        >
+                          ✕
+                        </button>
+                      ))}
                   </span>
                 ))}
                 {!disabled && <span className="ghost-lot">+1</span>}
@@ -150,18 +162,29 @@ export default function Ladder({
                   <span key={o.id} className={`order-chip offer-chip${o.userId === me ? " mine" : ""}`}>
                     {nameOf(o.userId)}
                     {o.qty !== 1 && <span style={{ opacity: 0.65 }}>×{fmtNum(o.qty)}</span>}
-                    {o.userId === me && !disabled && (
-                      <button
-                        className="x"
-                        title="Pull this order"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onCancel(o.id);
-                        }}
-                      >
-                        ✕
-                      </button>
-                    )}
+                    {o.userId === me &&
+                      !disabled &&
+                      (o.lockUntil && o.lockUntil > now ? (
+                        <span
+                          className="x"
+                          style={{ cursor: "not-allowed" }}
+                          title={`Opening quote — stands until ${new Date(o.lockUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          ⏱
+                        </span>
+                      ) : (
+                        <button
+                          className="x"
+                          title="Pull this order"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCancel(o.id);
+                          }}
+                        >
+                          ✕
+                        </button>
+                      ))}
                   </span>
                 ))}
               </div>
