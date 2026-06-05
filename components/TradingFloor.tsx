@@ -126,7 +126,7 @@ export default function TradingFloor() {
               </div>
               <div className="panel-body mono-sub" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <span>1. The operator lists events and settles them.</span>
-                <span>2. Anyone can list a call, put, or straddle — but listing means making: 5 up on each side, max 5 wide, and your opening quotes stand for 5 minutes.</span>
+                <span>2. Anyone can list a call, put, or straddle — but listing means making: 5 up on each side, max 5 wide. Opening quotes stand 5 minutes or until fully executed — partials keep standing, and nothing auto-reloads.</span>
                 <span>3. Click the ladder to join a level, 1 lot per click. Crossing trades. First in keeps priority.</span>
                 <span>4. Every trade prints on the tape and lands in your inbox.</span>
                 <span>5. Settle up like adults.</span>

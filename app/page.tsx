@@ -47,12 +47,12 @@ export default async function LandingPage() {
       <main>
         <section className="hero">
           <div>
-            <div className="hero-kicker">EST. TODAY · OPEN OUTCRY · NO CLEARINGHOUSE</div>
+            <div className="hero-kicker">EST. TODAY · CLICK-TRADED · NO CLEARINGHOUSE</div>
             <h1>
               PUSHUP<span className="accent">PIT</span>
             </h1>
             <p className="hero-sub">
-              The world&apos;s premier push-up derivatives exchange. The operator lists an event,
+              TMG&apos;s premier push-up derivatives click-trading exchange. The operator lists an event,
               you register the strikes — calls, puts, straddles — then quote the ladder, hit bids,
               lift offers. Every trade prints on the tape, lands in both inboxes, and moves your
               exposure. Settle up when the reps are counted.

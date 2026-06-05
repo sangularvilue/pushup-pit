@@ -433,8 +433,9 @@ export default function EventDesk({
                       </div>
                     </div>
                     <div className="num" style={{ fontSize: 11, color: "var(--ink-soft)" }}>
-                      House rule: list it, make it — at least 5 up on each side, no more than 5 wide,
-                      and your opening quotes stand for 5 minutes.
+                      House rule: list it, make it — at least 5 up on each side, no more than 5 wide.
+                      Opening quotes stand 5 minutes or until fully executed (partials keep standing);
+                      no reload required.
                     </div>
                     {mktErr && <div className="error-text">{mktErr}</div>}
                     <button type="submit" className="btn btn-ink" disabled={busy}>

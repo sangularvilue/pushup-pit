@@ -268,6 +268,9 @@ export async function placeOrder(
     });
     o.qty -= tradeQty;
     remaining -= tradeQty;
+    // Opening-quote obligation: a PARTIAL fill doesn't release the lock —
+    // quote 5, get taken for 1, the remaining 4 keep standing. Full
+    // execution removes the order entirely (and nothing auto-reloads).
   }
 
   book.orders = book.orders.filter((o) => o.qty > 0);
