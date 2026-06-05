@@ -1,31 +1,48 @@
-const QUOTES: { sym: string; px: string; up: boolean }[] = [
-  { sym: "JSMITH 5MIN", px: "92", up: true },
-  { sym: "OFFICE PLANK", px: "184s", up: false },
-  { sym: "NEWGUY MAX", px: "31", up: true },
-  { sym: "BURPEE DEC", px: "57", up: false },
-  { sym: "PULLUP STRADDLE 12", px: "4.5", up: true },
-  { sym: "INTERN SITUPS", px: "66", up: true },
-  { sym: "BOSS 1MIN", px: "22", up: false },
-  { sym: "WKND 10K PACE", px: "47:30", up: true },
-  { sym: "GYM ATTENDANCE JAN", px: "3", up: false },
-  { sym: "JSMITH 93 CALL", px: "7", up: true },
-];
+"use client";
 
+import { useEffect, useState } from "react";
+import { fmtNum } from "@/lib/payoff";
+import type { TapeEntry } from "@/lib/types";
+
+/** Marquee of real transactions on the exchange. Polls the tape. */
 export default function Ticker() {
-  const strip = QUOTES.map((q, i) => (
-    <span key={i} className={q.up ? "tick-up" : "tick-down"}>
-      {q.sym} {q.up ? "▲" : "▼"} {q.px}
-    </span>
-  ));
+  const [tape, setTape] = useState<TapeEntry[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetch("/api/tape")
+        .then((r) => r.json())
+        .then((d) => alive && setTape(d.tape || []))
+        .catch(() => {});
+    load();
+    const t = setInterval(load, 12000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
+
+  const strip = (keyPrefix: string) =>
+    tape && tape.length > 0 ? (
+      tape.map((t, i) => (
+        <span key={`${keyPrefix}${t.id}`} className={i % 2 ? "tick-down" : "tick-up"}>
+          {t.buyerName.toUpperCase()} ✕ {t.sellerName.toUpperCase()} · {fmtNum(t.qty)}{" "}
+          {t.marketLabel} @ {fmtNum(t.price)}{" "}
+          <span style={{ opacity: 0.55 }}>({t.eventName.toUpperCase()})</span>
+        </span>
+      ))
+    ) : (
+      <span key={`${keyPrefix}quiet`} className="tick-up">
+        THE TAPE IS QUIET · EVERY REAL TRADE ON THE EXCHANGE PRINTS HERE · QUOTE SOMETHING
+      </span>
+    );
+
   return (
     <div className="ticker" aria-hidden="true">
       <div className="ticker-inner">
-        {strip}
-        {strip.map((el, i) => (
-          <span key={`b${i}`} className={QUOTES[i].up ? "tick-up" : "tick-down"}>
-            {QUOTES[i].sym} {QUOTES[i].up ? "▲" : "▼"} {QUOTES[i].px}
-          </span>
-        ))}
+        {strip("a")}
+        {strip("b")}
       </div>
     </div>
   );

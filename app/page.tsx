@@ -52,10 +52,10 @@ export default async function LandingPage() {
               PUSHUP<span className="accent">PIT</span>
             </h1>
             <p className="hero-sub">
-              The world&apos;s premier push-up derivatives tracker. The market happens in the pit —
-              your office, your gym, your group chat. Log the futures, calls, puts &amp; straddles
-              you&apos;ve traded, watch your payoff diagram move, and settle up when the reps are
-              counted.
+              The world&apos;s premier push-up derivatives exchange. The operator lists an event,
+              you register the strikes — calls, puts, straddles — then quote the ladder, hit bids,
+              lift offers. Every trade prints on the tape, lands in both inboxes, and moves your
+              exposure. Settle up when the reps are counted.
             </p>
             <div className="hero-cta">
               <Link href="/register" className="btn btn-gold btn-big">
@@ -71,33 +71,33 @@ export default async function LandingPage() {
         <section className="rules">
           <div className="rule-card">
             <div className="rule-num">RULE 01</div>
-            <h3>List the contract</h3>
+            <h3>The operator lists</h3>
             <p>
-              &ldquo;Pushups John Smith does in 5 minutes.&rdquo; Set the tick value — $1 per pushup
-              keeps friendships intact.
+              &ldquo;Pushups John Smith does in 5 minutes.&rdquo; The exchange operator lists the
+              event and the outright market. $1 per pushup keeps friendships intact.
             </p>
           </div>
           <div className="rule-card">
             <div className="rule-num">RULE 02</div>
-            <h3>Write your tickets</h3>
+            <h3>Register the strikes</h3>
             <p>
-              Sold 5 futures at 90 to Adam? Bought the 93 call from Bob at 7? Jot each fill on a
-              ticket — the trading already happened out loud.
+              Any member can list the 93 call, the 82 put, the 87 straddle. Each market gets a
+              ladder — quote it, hit it, lift it.
             </p>
           </div>
           <div className="rule-card">
             <div className="rule-num">RULE 03</div>
-            <h3>Watch the book</h3>
+            <h3>Every print is real</h3>
             <p>
-              A live payoff diagram shows your P&amp;L at every possible settlement — breakevens, max
-              profit, max pain, per counterparty.
+              Trades cross on the ladder, print on the ticker, and email both counterparties a TRADE
+              NOTIFICATION. Your exposure chart moves live.
             </p>
           </div>
           <div className="rule-card">
             <div className="rule-num">RULE 04</div>
-            <h3>Ring the bell</h3>
+            <h3>The operator settles</h3>
             <p>
-              Enter the official count and the reckoning prints itself: who owes you what, on which
+              The official count goes in, the reckoning prints itself: who owes whom, on which
               trades, to the penny.
             </p>
           </div>

@@ -445,6 +445,71 @@ select.finput {
   cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
+/* ── Ladder ──────────────────────────────────────────────────── */
+
+.ladder { width: 100%; }
+.ladder-head {
+  display: grid; grid-template-columns: 1fr 90px 1fr;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--chalk-faint);
+  padding: 4px 8px 6px; border-bottom: 1px solid var(--board-line-strong);
+}
+.ladder-scroll { max-height: 440px; overflow-y: auto; }
+.ladder-row {
+  display: grid; grid-template-columns: 1fr 90px 1fr;
+  align-items: center; padding: 4px 8px;
+  border-bottom: 1px solid var(--board-line);
+  cursor: pointer; position: relative;
+}
+.ladder-row:hover { background: rgba(243, 234, 215, 0.05); }
+.ladder-row.selected { background: rgba(227, 176, 78, 0.1); }
+.ladder-row.last-trade .ladder-price { color: var(--brass); font-weight: 700; }
+.ladder-price {
+  text-align: center; font-family: var(--font-mono); font-size: 13px;
+  color: var(--chalk-dim); font-variant-numeric: tabular-nums;
+}
+.ladder-cell { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; position: relative; min-height: 22px; overflow: hidden; }
+.ladder-cell.bids { justify-content: flex-end; padding-right: 6px; }
+.ladder-cell.offers { justify-content: flex-start; padding-left: 6px; }
+.depth-bar { position: absolute; top: 0; bottom: 0; pointer-events: none; }
+.ladder-cell.bids .depth-bar { right: 0; background: rgba(62, 207, 129, 0.1); }
+.ladder-cell.offers .depth-bar { left: 0; background: rgba(226, 81, 65, 0.1); }
+.order-chip {
+  position: relative; z-index: 1;
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+  padding: 1px 6px; border-radius: 2px; white-space: nowrap;
+}
+.order-chip.bid-chip { background: rgba(62, 207, 129, 0.18); color: var(--up); }
+.order-chip.offer-chip { background: rgba(226, 81, 65, 0.18); color: var(--down); }
+.order-chip.mine { outline: 1.5px solid var(--brass); }
+.order-chip .x { background: none; border: none; cursor: pointer; color: inherit; opacity: 0.5; padding: 0 1px; font-size: 11px; }
+.order-chip .x:hover { opacity: 1; }
+[data-theme="paper"] .ladder-price { color: rgba(29, 43, 36, 0.6); }
+[data-theme="paper"] .ladder-row:hover { background: rgba(29, 43, 36, 0.04); }
+[data-theme="paper"] .order-chip.bid-chip { background: rgba(30, 138, 82, 0.15); color: var(--up-deep); }
+[data-theme="paper"] .order-chip.offer-chip { background: rgba(176, 52, 37, 0.13); color: var(--down-deep); }
+
+.ladder-action {
+  display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;
+  padding: 10px; margin-bottom: 8px;
+  border: 1.5px dashed var(--brass); border-radius: 4px;
+  background: rgba(227, 176, 78, 0.06);
+}
+
+.market-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  width: 100%; text-align: left; padding: 8px 10px;
+  background: none; border: 1px solid transparent; border-radius: 4px;
+  cursor: pointer; color: inherit; font-family: var(--font-mono); font-size: 12.5px;
+}
+.market-row:hover { background: rgba(243, 234, 215, 0.06); }
+.market-row.selected { border-color: var(--brass); background: rgba(227, 176, 78, 0.08); }
+.market-row .lbl { color: var(--brass); font-weight: 600; letter-spacing: 0.06em; }
+.market-row .bbo { color: var(--chalk-dim); }
+[data-theme="paper"] .market-row:hover { background: rgba(29, 43, 36, 0.05); }
+[data-theme="paper"] .market-row .bbo { color: rgba(29, 43, 36, 0.55); }
+
 /* ── Mobile layout (event desk) ──────────────────────────────── */
 
 .mobile-shell { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
