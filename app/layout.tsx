@@ -29,7 +29,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* apply saved theme/density before first paint to avoid a flash */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var d=document.documentElement;d.setAttribute("data-theme",localStorage.getItem("pp-theme")||"board");d.setAttribute("data-density",localStorage.getItem("pp-density")||"cozy");}catch(e){}`,
+          }}
+        />
+      </head>
       <body
         className={`${graduate.variable} ${plexMono.variable} ${franklin.variable}`}
         style={{

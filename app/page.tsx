@@ -59,7 +59,7 @@ export default async function LandingPage() {
             </p>
             <div className="hero-cta">
               <Link href="/register" className="btn btn-gold btn-big">
-                Get a badge
+                Sign Up
               </Link>
               <Link href="/login" className="btn btn-big">
                 Sign in

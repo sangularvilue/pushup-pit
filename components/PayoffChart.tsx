@@ -12,7 +12,6 @@ import {
 import type { Trade } from "@/lib/types";
 
 const W = 820;
-const H = 430;
 const PAD = { l: 64, r: 20, t: 18, b: 40 };
 
 const PARTY_COLORS = [
@@ -52,6 +51,8 @@ export interface PayoffChartProps {
   showParties?: boolean;
   /** Pending (unconfirmed) ticket — previewed against the current book. */
   draft?: Trade | null;
+  /** Short chart for the mobile layout (820×260 viewBox). */
+  compact?: boolean;
 }
 
 export default function PayoffChart({
@@ -62,9 +63,11 @@ export default function PayoffChart({
   whatIf,
   showParties = false,
   draft = null,
+  compact = false,
 }: PayoffChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoverX, setHoverX] = useState<number | null>(null);
+  const H = compact ? 260 : 420;
 
   // "book" is what gets drawn bold: current trades, plus the pending ticket if any.
   const book = useMemo(() => (draft ? [...trades, draft] : trades), [trades, draft]);
@@ -119,7 +122,7 @@ export default function PayoffChart({
     const bes = breakevens(book, tickValue, xLo, xHi);
 
     return { xLo, xHi, yLo, yHi, xs, total, before, parties, sx, sy, bes };
-  }, [book, trades, draft, tickValue, settlement, whatIf, showParties]);
+  }, [book, trades, draft, tickValue, settlement, whatIf, showParties, H]);
 
   const { xLo, xHi, yLo, yHi, xs, total, before, parties, sx, sy, bes } = model;
 
@@ -130,8 +133,8 @@ export default function PayoffChart({
       : "";
 
   const zeroY = sy(0);
-  const xTicks = niceTicks(xLo, xHi, 8);
-  const yTicks = niceTicks(yLo, yHi, 6);
+  const xTicks = niceTicks(xLo, xHi, compact ? 6 : 8);
+  const yTicks = niceTicks(yLo, yHi, compact ? 4 : 6);
 
   function onMove(e: React.MouseEvent<SVGSVGElement>) {
     const svg = svgRef.current;
@@ -262,7 +265,7 @@ export default function PayoffChart({
 
         {/* total payoff line */}
         {book.length > 0 && (
-          <path d={linePath} fill="none" stroke="#f3ead7" strokeWidth="3" filter="url(#glow)" strokeLinejoin="round" />
+          <path d={linePath} fill="none" stroke="#f3ead7" strokeWidth="2.8" filter="url(#glow)" strokeLinejoin="round" />
         )}
 
         {/* breakevens */}
@@ -325,7 +328,7 @@ export default function PayoffChart({
             <line x1={sx(hoverX)} y1={PAD.t} x2={sx(hoverX)} y2={H - PAD.b} stroke="rgba(243,234,215,0.35)" strokeWidth="1" />
             <circle cx={sx(hoverX)} cy={sy(hoverPnl)} r="5" fill={hoverPnl >= 0 ? "#3ecf81" : "#e25141"} stroke="#0d2118" strokeWidth="1.5" />
             {(() => {
-              const boxW = 168;
+              const boxW = 162;
               const bx = Math.min(Math.max(sx(hoverX) + 12, PAD.l), W - PAD.r - boxW);
               const by = Math.max(sy(hoverPnl) - 52, PAD.t + 2);
               return (
