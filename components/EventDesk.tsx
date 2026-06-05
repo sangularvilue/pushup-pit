@@ -108,6 +108,30 @@ export default function EventDesk({ id }: { id: string }) {
   const validWhatIf = whatIf != null && Number.isFinite(whatIf) ? whatIf : null;
   const markPrice = settled ? event!.settlement! : validWhatIf;
 
+  // Pending ticket → previewed live on the chart before Confirm.
+  const draftTrade = useMemo<Trade | null>(() => {
+    const q = Number(qty);
+    const p = Number(price);
+    const k = Number(strike);
+    if (price.trim() === "" || !Number.isFinite(p)) return null;
+    if (!Number.isFinite(q) || q <= 0) return null;
+    if (kind !== "future" && (strike.trim() === "" || !Number.isFinite(k))) return null;
+    return {
+      id: "__draft__",
+      side,
+      kind,
+      qty: q,
+      price: p,
+      strike: kind === "future" ? undefined : k,
+      counterparty: party.trim() || "(pending)",
+      ts: 0,
+    };
+  }, [side, kind, qty, price, strike, party]);
+  const draftExtremes = useMemo(
+    () => (draftTrade ? extremes([...trades, draftTrade], tickValue) : null),
+    [draftTrade, trades, tickValue]
+  );
+
   const { maxProfit, maxLoss } = useMemo(() => extremes(trades, tickValue), [trades, tickValue]);
   const posLines = useMemo(() => positions(trades), [trades]);
   const ledger = useMemo(
@@ -345,10 +369,43 @@ export default function EventDesk({ id }: { id: string }) {
                   {ticketSummary}
                 </div>
               )}
+              {draftTrade && draftExtremes && !settled && (
+                <div className="num" style={{ fontSize: 11.5, color: "var(--ink-soft)" }}>
+                  book after this trade → max profit{" "}
+                  <strong style={{ color: "var(--up-deep)" }}>{fmtMoney(draftExtremes.maxProfit)}</strong>, max
+                  loss <strong style={{ color: "var(--down-deep)" }}>{fmtMoney(draftExtremes.maxLoss)}</strong>
+                </div>
+              )}
               {ticketErr && <div className="error-text">{ticketErr}</div>}
-              <button type="submit" className={`btn btn-big ${side === "buy" ? "btn-buy" : "btn-sell"}`}>
-                {side === "buy" ? "Lift the offer" : "Hit the bid"}
-              </button>
+              {draftTrade ? (
+                <div className="form-row">
+                  <button
+                    type="submit"
+                    className={`btn btn-big ${side === "buy" ? "btn-buy" : "btn-sell"}`}
+                    style={{ flex: 2 }}
+                  >
+                    Confirm trade
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ink btn-big"
+                    style={{ flex: 1 }}
+                    onClick={() => {
+                      setPrice("");
+                      setStrike("");
+                      setQty("1");
+                      setParty("");
+                      setTicketErr("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button type="submit" className={`btn btn-big ${side === "buy" ? "btn-buy" : "btn-sell"}`}>
+                  {side === "buy" ? "Lift the offer" : "Hit the bid"}
+                </button>
+              )}
             </div>
           </form>
 
@@ -468,6 +525,7 @@ export default function EventDesk({ id }: { id: string }) {
                 settlement={settled ? event.settlement : null}
                 whatIf={settled ? null : validWhatIf}
                 showParties={showParties}
+                draft={settled ? null : draftTrade}
               />
             </div>
           </div>

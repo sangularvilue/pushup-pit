@@ -52,9 +52,10 @@ export default async function LandingPage() {
               PUSHUP<span className="accent">PIT</span>
             </h1>
             <p className="hero-sub">
-              The world&apos;s premier push-up derivatives exchange. List a contract on anything
-              countable, trade futures, calls, puts &amp; straddles against your friends, watch your
-              payoff diagram move, and settle up when the reps are counted.
+              The world&apos;s premier push-up derivatives tracker. The market happens in the pit —
+              your office, your gym, your group chat. Log the futures, calls, puts &amp; straddles
+              you&apos;ve traded, watch your payoff diagram move, and settle up when the reps are
+              counted.
             </p>
             <div className="hero-cta">
               <Link href="/register" className="btn btn-gold btn-big">
@@ -78,10 +79,10 @@ export default async function LandingPage() {
           </div>
           <div className="rule-card">
             <div className="rule-num">RULE 02</div>
-            <h3>Make a market</h3>
+            <h3>Write your tickets</h3>
             <p>
-              Sell 5 futures at 90 to Adam. Buy the 93 call from Bob at 7. Leg into a straddle when
-              nobody knows if he&apos;s even warmed up.
+              Sold 5 futures at 90 to Adam? Bought the 93 call from Bob at 7? Jot each fill on a
+              ticket — the trading already happened out loud.
             </p>
           </div>
           <div className="rule-card">

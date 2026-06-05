@@ -50,6 +50,8 @@ export interface PayoffChartProps {
   whatIf?: number | null;
   /** Show thin per-counterparty payoff lines. */
   showParties?: boolean;
+  /** Pending (unconfirmed) ticket — previewed against the current book. */
+  draft?: Trade | null;
 }
 
 export default function PayoffChart({
@@ -59,12 +61,16 @@ export default function PayoffChart({
   settlement,
   whatIf,
   showParties = false,
+  draft = null,
 }: PayoffChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoverX, setHoverX] = useState<number | null>(null);
 
+  // "book" is what gets drawn bold: current trades, plus the pending ticket if any.
+  const book = useMemo(() => (draft ? [...trades, draft] : trades), [trades, draft]);
+
   const model = useMemo(() => {
-    let [xLo, xHi] = chartDomain(trades);
+    let [xLo, xHi] = chartDomain(book);
     for (const m of [settlement, whatIf]) {
       if (m != null && Number.isFinite(m)) {
         if (m < xLo) xLo = Math.max(0, Math.floor(m - (xHi - xLo) * 0.1));
@@ -77,10 +83,12 @@ export default function PayoffChart({
     const xs: number[] = [];
     const N = 160;
     for (let i = 0; i <= N; i++) xs.push(xLo + ((xHi - xLo) * i) / N);
-    for (const k of kinkXs(trades)) if (k >= xLo && k <= xHi) xs.push(k);
+    for (const k of kinkXs(book)) if (k >= xLo && k <= xHi) xs.push(k);
     xs.sort((a, b) => a - b);
 
-    const total = xs.map((x) => portfolioPnl(trades, x, tickValue));
+    const total = xs.map((x) => portfolioPnl(book, x, tickValue));
+    // ghost of the confirmed book, shown while a ticket is pending
+    const before = draft ? xs.map((x) => portfolioPnl(trades, x, tickValue)) : null;
 
     const parties = new Map<string, number[]>();
     if (showParties) {
@@ -91,8 +99,8 @@ export default function PayoffChart({
       }
     }
 
-    let yLo = Math.min(0, ...total);
-    let yHi = Math.max(0, ...total);
+    let yLo = Math.min(0, ...total, ...(before ?? []));
+    let yHi = Math.max(0, ...total, ...(before ?? []));
     for (const vals of parties.values()) {
       yLo = Math.min(yLo, ...vals);
       yHi = Math.max(yHi, ...vals);
@@ -108,16 +116,16 @@ export default function PayoffChart({
     const sx = (x: number) => PAD.l + ((x - xLo) / (xHi - xLo)) * (W - PAD.l - PAD.r);
     const sy = (y: number) => PAD.t + ((yHi - y) / (yHi - yLo)) * (H - PAD.t - PAD.b);
 
-    const bes = breakevens(trades, tickValue, xLo, xHi);
+    const bes = breakevens(book, tickValue, xLo, xHi);
 
-    return { xLo, xHi, yLo, yHi, xs, total, parties, sx, sy, bes };
-  }, [trades, tickValue, settlement, whatIf, showParties]);
+    return { xLo, xHi, yLo, yHi, xs, total, before, parties, sx, sy, bes };
+  }, [book, trades, draft, tickValue, settlement, whatIf, showParties]);
 
-  const { xLo, xHi, yLo, yHi, xs, total, parties, sx, sy, bes } = model;
+  const { xLo, xHi, yLo, yHi, xs, total, before, parties, sx, sy, bes } = model;
 
   const linePath = xs.map((x, i) => `${i ? "L" : "M"}${sx(x).toFixed(2)},${sy(total[i]).toFixed(2)}`).join("");
   const areaPath =
-    trades.length > 0
+    book.length > 0
       ? `${linePath}L${sx(xHi).toFixed(2)},${sy(0).toFixed(2)}L${sx(xLo).toFixed(2)},${sy(0).toFixed(2)}Z`
       : "";
 
@@ -134,7 +142,7 @@ export default function PayoffChart({
     setHoverX(x >= xLo && x <= xHi ? x : null);
   }
 
-  const hoverPnl = hoverX != null ? portfolioPnl(trades, hoverX, tickValue) : null;
+  const hoverPnl = hoverX != null ? portfolioPnl(book, hoverX, tickValue) : null;
 
   const partyEntries = [...parties.entries()];
 
@@ -143,7 +151,7 @@ export default function PayoffChart({
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
-        style={{ width: "100%", display: "block", cursor: trades.length ? "crosshair" : "default" }}
+        style={{ width: "100%", display: "block", cursor: book.length ? "crosshair" : "default" }}
         onMouseMove={onMove}
         onMouseLeave={() => setHoverX(null)}
       >
@@ -207,7 +215,7 @@ export default function PayoffChart({
         />
 
         {/* strikes */}
-        {kinkXs(trades).map((k) => (
+        {kinkXs(book).map((k) => (
           <line
             key={`k${k}`}
             x1={sx(k)}
@@ -240,8 +248,20 @@ export default function PayoffChart({
           />
         ))}
 
+        {/* ghost of the confirmed book while a ticket is pending */}
+        {before && trades.length > 0 && (
+          <path
+            d={xs.map((x, i) => `${i ? "L" : "M"}${sx(x).toFixed(2)},${sy(before[i]).toFixed(2)}`).join("")}
+            fill="none"
+            stroke="rgba(243,234,215,0.4)"
+            strokeWidth="1.8"
+            strokeDasharray="7 5"
+            strokeLinejoin="round"
+          />
+        )}
+
         {/* total payoff line */}
-        {trades.length > 0 && (
+        {book.length > 0 && (
           <path d={linePath} fill="none" stroke="#f3ead7" strokeWidth="3" filter="url(#glow)" strokeLinejoin="round" />
         )}
 
@@ -275,7 +295,7 @@ export default function PayoffChart({
               strokeWidth="1.5"
               strokeDasharray="5 4"
             />
-            <circle cx={sx(whatIf)} cy={sy(portfolioPnl(trades, whatIf, tickValue))} r="5" fill="#7fd0e8" stroke="#0d2118" strokeWidth="1.5" />
+            <circle cx={sx(whatIf)} cy={sy(portfolioPnl(book, whatIf, tickValue))} r="5" fill="#7fd0e8" stroke="#0d2118" strokeWidth="1.5" />
           </g>
         )}
 
@@ -295,12 +315,12 @@ export default function PayoffChart({
             >
               SETTLED {fmtNum(settlement)}
             </text>
-            <circle cx={sx(settlement)} cy={sy(portfolioPnl(trades, settlement, tickValue))} r="6" fill="#e3b04e" stroke="#0d2118" strokeWidth="2" />
+            <circle cx={sx(settlement)} cy={sy(portfolioPnl(book, settlement, tickValue))} r="6" fill="#e3b04e" stroke="#0d2118" strokeWidth="2" />
           </g>
         )}
 
         {/* hover crosshair */}
-        {hoverX != null && trades.length > 0 && hoverPnl != null && (
+        {hoverX != null && book.length > 0 && hoverPnl != null && (
           <g pointerEvents="none">
             <line x1={sx(hoverX)} y1={PAD.t} x2={sx(hoverX)} y2={H - PAD.b} stroke="rgba(243,234,215,0.35)" strokeWidth="1" />
             <circle cx={sx(hoverX)} cy={sy(hoverPnl)} r="5" fill={hoverPnl >= 0 ? "#3ecf81" : "#e25141"} stroke="#0d2118" strokeWidth="1.5" />
@@ -344,7 +364,7 @@ export default function PayoffChart({
           SETTLEMENT ({unit.toUpperCase()}S)
         </text>
 
-        {trades.length === 0 && (
+        {book.length === 0 && (
           <text
             x={W / 2}
             y={H / 2}
@@ -357,6 +377,21 @@ export default function PayoffChart({
           </text>
         )}
       </svg>
+
+      {draft && (
+        <div
+          style={{
+            display: "flex",
+            gap: 16,
+            padding: "6px 4px 0",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11.5,
+          }}
+        >
+          <span style={{ color: "rgba(243,234,215,0.5)" }}>─ ─ current book</span>
+          <span style={{ color: "#f3ead7", fontWeight: 600 }}>━ with pending ticket</span>
+        </div>
+      )}
 
       {showParties && partyEntries.length > 0 && (
         <div
