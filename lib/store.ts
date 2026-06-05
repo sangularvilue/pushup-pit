@@ -125,14 +125,43 @@ export async function listBooks(eventId: string): Promise<BookDoc[]> {
   return books;
 }
 
+export interface SeedQuote {
+  bidPrice: number;
+  bidQty: number;
+  offerPrice: number;
+  offerQty: number;
+}
+
+/** Market-maker obligation for new derivative markets. */
+export const SEED_MIN_QTY = 5;
+export const SEED_MAX_WIDTH = 5;
+
 export async function createMarket(
   eventId: string,
   kind: Kind,
   strike: number | undefined,
-  createdBy: string
+  createdBy: string,
+  seed?: SeedQuote
 ): Promise<Market | { error: string }> {
   if (kind !== "future" && (strike == null || !Number.isFinite(strike))) {
     return { error: "A strike is required." };
+  }
+  // Listing a derivative means making a market: ≥5 up on each side, ≤5 wide.
+  if (kind !== "future") {
+    if (!seed) return { error: "New markets need an opening quote." };
+    const { bidPrice, bidQty, offerPrice, offerQty } = seed;
+    if (![bidPrice, bidQty, offerPrice, offerQty].every(Number.isFinite)) {
+      return { error: "Fill in the whole opening quote." };
+    }
+    if (bidQty < SEED_MIN_QTY || offerQty < SEED_MIN_QTY) {
+      return { error: `Quote at least ${SEED_MIN_QTY} lots on each side.` };
+    }
+    if (bidPrice < 0 || offerPrice <= bidPrice) {
+      return { error: "The offer must be above the bid." };
+    }
+    if (offerPrice - bidPrice > SEED_MAX_WIDTH) {
+      return { error: `Max ${SEED_MAX_WIDTH} wide — tighten it up.` };
+    }
   }
   const existing = await listBooks(eventId);
   if (
@@ -150,7 +179,14 @@ export async function createMarket(
     createdBy,
     createdAt: Date.now(),
   };
-  await saveBook({ market, orders: [] });
+  const now = Date.now();
+  const orders: Order[] = seed
+    ? [
+        { id: uuid(), marketId: market.id, userId: createdBy, side: "bid", price: seed.bidPrice, qty: seed.bidQty, ts: now },
+        { id: uuid(), marketId: market.id, userId: createdBy, side: "offer", price: seed.offerPrice, qty: seed.offerQty, ts: now },
+      ]
+    : [];
+  await saveBook({ market, orders });
   await redis.sadd(eventMarketsKey(eventId), market.id);
   return market;
 }

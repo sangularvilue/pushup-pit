@@ -5,6 +5,15 @@ export interface SendResult {
   delivered: boolean;
 }
 
+export function baseUrl(reqUrl: string): string {
+  if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL.replace(/\/$/, "");
+  try {
+    return new URL(reqUrl).origin;
+  } catch {
+    return "https://pushups.grannis.xyz";
+  }
+}
+
 export async function sendEmail(opts: {
   to: string;
   subject: string;

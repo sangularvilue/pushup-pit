@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { fmtNum } from "@/lib/payoff";
 import type { BookDoc, OrderSide } from "@/lib/types";
 
@@ -16,10 +16,10 @@ export interface LadderProps {
 }
 
 /**
- * Sparse price ladder: every level with resting orders (plus the last trade).
- * Click a level to arm the action bar, then BID (buy) or OFFER (sell) at that
- * price — crossing orders match automatically, so clicking an offer level and
- * bidding it is a lift; bidding below just rests. New levels via the quote row.
+ * Full price ladder: every integer level in range, scrollable even where
+ * nothing rests. Click the bid side to join the bid one lot at that level,
+ * click the offer side to offer one — crossing the book trades instead
+ * (price-time priority; first at a level keeps it).
  */
 export default function Ladder({
   book,
@@ -31,14 +31,39 @@ export default function Ladder({
   onOrder,
   onCancel,
 }: LadderProps) {
-  const [selected, setSelected] = useState<number | null>(null);
-  const [qty, setQty] = useState("1");
-  const [newPrice, setNewPrice] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const centeredFor = useRef<string>("");
 
-  const { levels, depth, maxDepth } = useMemo(() => {
-    const prices = new Set<number>(book.orders.map((o) => o.price));
-    if (lastPrice != null) prices.add(lastPrice);
-    const levels = [...prices].sort((a, b) => b - a);
+  const { levels, anchor, depth, maxDepth } = useMemo(() => {
+    const prices = book.orders.map((o) => o.price);
+    if (lastPrice != null) prices.push(lastPrice);
+    if (book.market.strike != null && prices.length === 0) prices.push(book.market.strike);
+
+    let lo: number;
+    let hi: number;
+    if (prices.length > 0) {
+      lo = Math.max(0, Math.floor(Math.min(...prices)) - 15);
+      hi = Math.ceil(Math.max(...prices)) + 15;
+    } else {
+      lo = 0;
+      hi = 100;
+    }
+
+    // integer rungs, plus any off-grid prices actually resting/printed
+    const set = new Set<number>();
+    for (let p = lo; p <= hi; p++) set.add(p);
+    for (const p of prices) set.add(p);
+    const levels = [...set].sort((a, b) => b - a);
+
+    const bids = book.orders.filter((o) => o.side === "bid").map((o) => o.price);
+    const offers = book.orders.filter((o) => o.side === "offer").map((o) => o.price);
+    const bb = bids.length ? Math.max(...bids) : null;
+    const bo = offers.length ? Math.min(...offers) : null;
+    const anchor =
+      bb != null && bo != null
+        ? (bb + bo) / 2
+        : (bb ?? bo ?? lastPrice ?? (lo + hi) / 2);
+
     const depth = new Map<string, number>();
     let maxDepth = 1;
     for (const o of book.orders) {
@@ -47,54 +72,38 @@ export default function Ladder({
       depth.set(k, v);
       if (v > maxDepth) maxDepth = v;
     }
-    return { levels, depth, maxDepth };
-  }, [book.orders, lastPrice]);
+    return { levels, anchor, depth, maxDepth };
+  }, [book.orders, book.market.strike, lastPrice]);
 
-  const qtyNum = Number(qty);
-  const validQty = Number.isFinite(qtyNum) && qtyNum > 0;
-
-  function fire(side: OrderSide, price: number) {
-    if (!validQty || disabled) return;
-    onOrder(side, price, qtyNum);
-    setSelected(null);
-  }
+  // center the view on the action when switching markets
+  useEffect(() => {
+    if (centeredFor.current === book.market.id) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const idx = levels.findIndex((p) => p <= anchor);
+    if (idx < 0) return;
+    const row = el.children[idx] as HTMLElement | undefined;
+    if (row) {
+      el.scrollTop = Math.max(0, row.offsetTop - el.clientHeight / 2 + row.clientHeight / 2);
+      centeredFor.current = book.market.id;
+    }
+  }, [book.market.id, levels, anchor]);
 
   const nameOf = (id: string) => (id === me ? "you" : names[id] || "?");
 
+  function click(side: OrderSide, price: number) {
+    if (disabled || busy) return;
+    onOrder(side, price, 1);
+  }
+
   return (
     <div className="ladder">
-      {selected != null && !disabled && (
-        <div className="ladder-action">
-          <span className="num" style={{ fontSize: 15, fontWeight: 700, color: "var(--brass)" }}>
-            {fmtNum(selected)}
-          </span>
-          <div className="field" style={{ width: 70 }}>
-            <label className="flabel">Qty</label>
-            <input className="finput" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
-          </div>
-          <button className="btn btn-buy" disabled={busy || !validQty} onClick={() => fire("bid", selected)}>
-            Bid
-          </button>
-          <button className="btn btn-sell" disabled={busy || !validQty} onClick={() => fire("offer", selected)}>
-            Offer
-          </button>
-          <button className="btn btn-ghost" onClick={() => setSelected(null)}>
-            never mind
-          </button>
-        </div>
-      )}
-
       <div className="ladder-head">
-        <div style={{ textAlign: "right", paddingRight: 6 }}>Bids</div>
+        <div style={{ textAlign: "right", paddingRight: 6 }}>Bids — click to join / lift</div>
         <div style={{ textAlign: "center" }}>Price</div>
-        <div style={{ paddingLeft: 6 }}>Offers</div>
+        <div style={{ paddingLeft: 6 }}>Offers — click to join / hit</div>
       </div>
-      <div className="ladder-scroll">
-        {levels.length === 0 && (
-          <div className="empty-note" style={{ margin: 8 }}>
-            Nobody&apos;s quoting. Be the first — post a level below.
-          </div>
-        )}
+      <div className="ladder-scroll" ref={scrollRef}>
         {levels.map((price) => {
           const bids = book.orders
             .filter((o) => o.side === "bid" && o.price === price)
@@ -107,10 +116,9 @@ export default function Ladder({
           return (
             <div
               key={price}
-              className={`ladder-row${selected === price ? " selected" : ""}${lastPrice === price ? " last-trade" : ""}`}
-              onClick={() => !disabled && setSelected(selected === price ? null : price)}
+              className={`ladder-row${lastPrice === price ? " last-trade" : ""}${disabled ? " dead" : ""}`}
             >
-              <div className="ladder-cell bids">
+              <div className="ladder-cell bids clickable" onClick={() => click("bid", price)} title={disabled ? undefined : `Bid 1 @ ${fmtNum(price)}`}>
                 {bidDepth > 0 && <div className="depth-bar" style={{ width: `${(bidDepth / maxDepth) * 100}%` }} />}
                 {bids.map((o) => (
                   <span key={o.id} className={`order-chip bid-chip${o.userId === me ? " mine" : ""}`}>
@@ -130,12 +138,14 @@ export default function Ladder({
                     )}
                   </span>
                 ))}
+                {!disabled && <span className="ghost-lot">+1</span>}
               </div>
               <div className="ladder-price">{fmtNum(price)}</div>
-              <div className="ladder-cell offers">
+              <div className="ladder-cell offers clickable" onClick={() => click("offer", price)} title={disabled ? undefined : `Offer 1 @ ${fmtNum(price)}`}>
                 {offerDepth > 0 && (
                   <div className="depth-bar" style={{ width: `${(offerDepth / maxDepth) * 100}%` }} />
                 )}
+                {!disabled && <span className="ghost-lot">+1</span>}
                 {offers.map((o) => (
                   <span key={o.id} className={`order-chip offer-chip${o.userId === me ? " mine" : ""}`}>
                     {nameOf(o.userId)}
@@ -159,39 +169,6 @@ export default function Ladder({
           );
         })}
       </div>
-
-      {!disabled && (
-        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap", paddingTop: 12 }}>
-          <div className="field" style={{ width: 100 }}>
-            <label className="flabel">Price</label>
-            <input
-              className="finput"
-              inputMode="decimal"
-              placeholder="level"
-              value={newPrice}
-              onChange={(e) => setNewPrice(e.target.value)}
-            />
-          </div>
-          <div className="field" style={{ width: 70 }}>
-            <label className="flabel">Qty</label>
-            <input className="finput" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
-          </div>
-          <button
-            className="btn btn-buy"
-            disabled={busy || !validQty || !Number.isFinite(Number(newPrice)) || newPrice.trim() === ""}
-            onClick={() => fire("bid", Number(newPrice))}
-          >
-            Bid
-          </button>
-          <button
-            className="btn btn-sell"
-            disabled={busy || !validQty || !Number.isFinite(Number(newPrice)) || newPrice.trim() === ""}
-            onClick={() => fire("offer", Number(newPrice))}
-          >
-            Offer
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -457,16 +457,26 @@ select.finput {
 .ladder-scroll { max-height: 440px; overflow-y: auto; }
 .ladder-row {
   display: grid; grid-template-columns: 1fr 90px 1fr;
-  align-items: center; padding: 4px 8px;
+  align-items: stretch; padding: 0 8px;
   border-bottom: 1px solid var(--board-line);
-  cursor: pointer; position: relative;
+  position: relative;
 }
-.ladder-row:hover { background: rgba(243, 234, 215, 0.05); }
-.ladder-row.selected { background: rgba(227, 176, 78, 0.1); }
 .ladder-row.last-trade .ladder-price { color: var(--brass); font-weight: 700; }
+.ladder-row.dead .ladder-cell { cursor: default; }
+.ladder-cell.clickable { cursor: pointer; padding-top: 3px; padding-bottom: 3px; }
+.ladder-row:not(.dead) .ladder-cell.bids:hover { background: rgba(62, 207, 129, 0.1); }
+.ladder-row:not(.dead) .ladder-cell.offers:hover { background: rgba(226, 81, 65, 0.1); }
+.ghost-lot {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  opacity: 0; transition: opacity 0.1s; padding: 0 4px;
+}
+.ladder-cell.bids .ghost-lot { color: var(--up); }
+.ladder-cell.offers .ghost-lot { color: var(--down); }
+.ladder-row:not(.dead) .ladder-cell:hover .ghost-lot { opacity: 1; }
 .ladder-price {
   text-align: center; font-family: var(--font-mono); font-size: 13px;
   color: var(--chalk-dim); font-variant-numeric: tabular-nums;
+  align-self: center;
 }
 .ladder-cell { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; position: relative; min-height: 22px; overflow: hidden; }
 .ladder-cell.bids { justify-content: flex-end; padding-right: 6px; }

@@ -85,6 +85,8 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
             {mode === "login" ? (
               <>
                 No badge yet? <Link href="/register">Apply here</Link>.
+                <br />
+                <Link href="/forgot">Forgot your password?</Link>
               </>
             ) : (
               <>

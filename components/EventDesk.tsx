@@ -56,6 +56,10 @@ export default function EventDesk({
   const [selectedMarketId, setSelectedMarketId] = useState<string | null>(null);
   const [mktKind, setMktKind] = useState<Kind>("call");
   const [mktStrike, setMktStrike] = useState("");
+  const [mktBidPx, setMktBidPx] = useState("");
+  const [mktBidQty, setMktBidQty] = useState("5");
+  const [mktOfferPx, setMktOfferPx] = useState("");
+  const [mktOfferQty, setMktOfferQty] = useState("5");
   const [mktErr, setMktErr] = useState("");
   const [whatIfStr, setWhatIfStr] = useState("");
   const [settleStr, setSettleStr] = useState("");
@@ -197,16 +201,30 @@ export default function EventDesk({
     setMktErr("");
     const strike = Number(mktStrike);
     if (!Number.isFinite(strike)) return setMktErr("Enter a strike.");
+    const bidPrice = Number(mktBidPx);
+    const offerPrice = Number(mktOfferPx);
+    const bidQty = Number(mktBidQty);
+    const offerQty = Number(mktOfferQty);
+    if (!Number.isFinite(bidPrice) || !Number.isFinite(offerPrice)) {
+      return setMktErr("Listing a market means making one — quote both sides.");
+    }
+    if (bidQty < 5 || offerQty < 5) return setMktErr("At least 5 lots on each side.");
+    if (offerPrice <= bidPrice) return setMktErr("The offer must be above the bid.");
+    if (offerPrice - bidPrice > 5) return setMktErr("Max 5 wide — tighten it up.");
     const data = (await act(() =>
       fetch(`/api/events/${id}/markets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: mktKind, strike }),
+        body: JSON.stringify({ kind: mktKind, strike, bidPrice, bidQty, offerPrice, offerQty }),
       })
     )) as { market?: { id: string } } | null;
     if (data?.market) {
       setSelectedMarketId(data.market.id);
       setMktStrike("");
+      setMktBidPx("");
+      setMktOfferPx("");
+      setMktBidQty("5");
+      setMktOfferQty("5");
     } else if (actionErr) {
       setMktErr(actionErr);
     }
@@ -372,9 +390,54 @@ export default function EventDesk({
                         />
                       </div>
                     </div>
+                    <div className="form-row">
+                      <div className="field">
+                        <label className="flabel">Your bid</label>
+                        <input
+                          className="finput"
+                          inputMode="decimal"
+                          placeholder="6"
+                          value={mktBidPx}
+                          onChange={(e) => setMktBidPx(e.target.value)}
+                        />
+                      </div>
+                      <div className="field">
+                        <label className="flabel">Bid qty</label>
+                        <input
+                          className="finput"
+                          inputMode="decimal"
+                          value={mktBidQty}
+                          onChange={(e) => setMktBidQty(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="field">
+                        <label className="flabel">Your offer</label>
+                        <input
+                          className="finput"
+                          inputMode="decimal"
+                          placeholder="9"
+                          value={mktOfferPx}
+                          onChange={(e) => setMktOfferPx(e.target.value)}
+                        />
+                      </div>
+                      <div className="field">
+                        <label className="flabel">Offer qty</label>
+                        <input
+                          className="finput"
+                          inputMode="decimal"
+                          value={mktOfferQty}
+                          onChange={(e) => setMktOfferQty(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="num" style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+                      House rule: list it, make it — at least 5 up on each side, no more than 5 wide.
+                    </div>
                     {mktErr && <div className="error-text">{mktErr}</div>}
                     <button type="submit" className="btn btn-ink" disabled={busy}>
-                      List it
+                      List it &amp; quote it
                     </button>
                   </div>
                 </form>
@@ -460,7 +523,7 @@ export default function EventDesk({
                       Ladder — {marketLabel(selectedBook.market)}
                     </span>
                     <span className="subtle">
-                      {settled ? "trading closed" : "click a level to bid or offer it"}
+                      {settled ? "trading closed" : "click the bid side or offer side — 1 lot per click, crossing trades"}
                     </span>
                   </div>
                   <div className="panel-body">

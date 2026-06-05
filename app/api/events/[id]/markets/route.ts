@@ -32,9 +32,15 @@ export async function POST(
   if (!Number.isFinite(strike) || strike < 0) {
     return NextResponse.json({ error: "A valid strike is required." }, { status: 400 });
   }
-  const result = await createMarket(id, kind, strike, user.id);
+  const seed = {
+    bidPrice: Number(body?.bidPrice),
+    bidQty: Number(body?.bidQty),
+    offerPrice: Number(body?.offerPrice),
+    offerQty: Number(body?.offerQty),
+  };
+  const result = await createMarket(id, kind, strike, user.id, seed);
   if ("error" in result) {
-    return NextResponse.json({ error: result.error }, { status: 409 });
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
   return NextResponse.json({ market: result });
 }
