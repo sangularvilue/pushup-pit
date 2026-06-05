@@ -384,6 +384,8 @@ async function recordFills(ev: PitEvent, market: Market, fills: Fill[]): Promise
           `Time: ${when}`,
           "",
           `Review your exposure: https://pushups.grannis.xyz/pit/${ev.id}`,
+          "",
+          "Thank you for your attention to this matter.",
         ].join("\n");
         const html = `
           <div style="font-family:Georgia,serif;background:#0d2118;color:#f3ead7;padding:24px;border-radius:8px">
@@ -395,6 +397,7 @@ async function recordFills(ev: PitEvent, market: Market, fills: Fill[]): Promise
               <tr><td style="padding-right:16px;opacity:.6">Time</td><td>${when}</td></tr>
             </table>
             <p style="margin-top:18px"><a href="https://pushups.grannis.xyz/pit/${ev.id}" style="color:#e3b04e">Review your exposure →</a></p>
+            <p style="margin-top:18px;opacity:.75">Thank you for your attention to this matter.</p>
           </div>`;
         return sendEmail({ to: user.email, subject, html, text });
       });

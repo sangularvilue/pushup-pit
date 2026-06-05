@@ -33,10 +33,11 @@ export async function POST(req: NextRequest) {
   const result = await sendEmail({
     to: emailLower,
     subject: "Reset your Pushup Pit password",
-    text: `Reset your Pushup Pit password using this link (valid for 1 hour):\n\n${link}\n\nIf you didn't request this, you can ignore this email.`,
+    text: `Reset your Pushup Pit password using this link (valid for 1 hour):\n\n${link}\n\nIf you didn't request this, you can ignore this email.\n\nThank you for your attention to this matter.`,
     html: `<p>Reset your <strong>Pushup Pit</strong> password using the link below (valid for 1 hour):</p>
 <p><a href="${link}">${link}</a></p>
-<p style="color:#888">If you didn't request this, you can safely ignore this email.</p>`,
+<p style="color:#888">If you didn't request this, you can safely ignore this email.</p>
+<p>Thank you for your attention to this matter.</p>`,
   });
 
   // In dev (no provider configured) expose the link so it can be tested.
