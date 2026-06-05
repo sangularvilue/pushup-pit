@@ -276,7 +276,7 @@ export default function EventDesk({
       <header className="site-header">
         <Link href="/pit" className="brand">
           <BrandMark />
-          PUSHUP<span className="accent">PIT</span>
+          PU$HUP<span className="accent">PIT</span>
         </Link>
         <div className="header-center">
           <div className="crumb">

@@ -18,7 +18,7 @@ const franklin = Libre_Franklin({
 });
 
 export const metadata: Metadata = {
-  title: "PUSHUP PIT — The Push-Up Derivatives Exchange",
+  title: "PU$HUP PIT — The Push-Up Derivatives Exchange",
   description:
     "List push-up contracts, trade futures, calls, puts and straddles against your friends, watch the payoff diagram, and settle up when the reps are counted.",
 };

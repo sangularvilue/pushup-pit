@@ -7,7 +7,7 @@ export default function SiteHeaderStatic() {
     <header className="site-header">
       <Link href="/" className="brand">
         <BrandMark />
-        PUSHUP<span className="accent">PIT</span>
+        PU$HUP<span className="accent">PIT</span>
       </Link>
       <div className="header-right">
         <Link href="/login" className="btn btn-ghost">

@@ -10,7 +10,7 @@ export default async function SiteHeader() {
     <header className="site-header">
       <Link href={user ? "/pit" : "/"} className="brand">
         <BrandMark />
-        PUSHUP<span className="accent">PIT</span>
+        PU$HUP<span className="accent">PIT</span>
       </Link>
       <div className="header-right">
         {user ? (

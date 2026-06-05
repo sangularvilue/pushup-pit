@@ -49,7 +49,7 @@ export default async function LandingPage() {
           <div>
             <div className="hero-kicker">EST. TODAY · CLICK-TRADED · NO CLEARINGHOUSE</div>
             <h1>
-              PUSHUP<span className="accent">PIT</span>
+              PU$HUP<span className="accent">PIT</span>
             </h1>
             <p className="hero-sub">
               TMG&apos;s premier push-up derivatives click-trading exchange. The operator lists an event,
