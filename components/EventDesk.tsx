@@ -782,17 +782,13 @@ export default function EventDesk({
               <div className="panel chart-panel">
                 <div className="panel-head">
                   <span className="panel-title">My Exposure at Settlement</span>
-                  {!settled && (
-                    <span className="mono-sub" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      what-if
-                      <input
-                        className="finput"
-                        style={{ width: 80, padding: "3px 6px", fontSize: 12 }}
-                        inputMode="decimal"
-                        placeholder="87"
-                        value={whatIfStr}
-                        onChange={(e) => setWhatIfStr(e.target.value)}
-                      />
+                  {!settled && validWhatIf != null && (
+                    <span className="mono-sub">
+                      what-if {fmtNum(validWhatIf)} {unit}s →{" "}
+                      <span className={pnlClass(totalAtMark)} style={{ fontWeight: 700 }}>
+                        {totalAtMark >= 0 ? "+" : ""}
+                        {fmtMoney(totalAtMark)}
+                      </span>
                     </span>
                   )}
                 </div>
@@ -805,20 +801,68 @@ export default function EventDesk({
                     whatIf={settled ? null : validWhatIf}
                     draft={settled ? null : draftTrade}
                   />
-                  {!settled && myTrades.length > 0 && (
-                    <input
-                      type="range"
-                      className="pit-range"
-                      min={sliderMin}
-                      max={domHi}
-                      step={(domHi - sliderMin) / 200 || 1}
-                      value={validWhatIf ?? sliderMin}
-                      onChange={(e) => setWhatIfStr(e.target.value)}
-                      style={{ width: "100%", marginTop: 10 }}
-                    />
-                  )}
                 </div>
               </div>
+
+              {!settled && (
+                <div className="panel">
+                  <div className="panel-head">
+                    <span className="panel-title">What-If Simulator</span>
+                    <span className="subtle">drag a hypothetical final count</span>
+                  </div>
+                  <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+                      <div className="field" style={{ width: 130 }}>
+                        <label className="flabel">What-if ({unit}s)</label>
+                        <input
+                          className="finput"
+                          inputMode="decimal"
+                          placeholder="e.g. 87"
+                          value={whatIfStr}
+                          onChange={(e) => setWhatIfStr(e.target.value)}
+                        />
+                      </div>
+                      <input
+                        type="range"
+                        className="pit-range"
+                        min={sliderMin}
+                        max={domHi}
+                        step={(domHi - sliderMin) / 200 || 1}
+                        value={validWhatIf ?? sliderMin}
+                        onChange={(e) => setWhatIfStr(e.target.value)}
+                        style={{ flex: 1, minWidth: 140 }}
+                      />
+                      {validWhatIf != null && (
+                        <button className="btn btn-ghost" onClick={() => setWhatIfStr("")}>
+                          clear
+                        </button>
+                      )}
+                    </div>
+                    <div className="num" style={{ fontSize: 13 }}>
+                      {validWhatIf != null ? (
+                        myTrades.length > 0 ? (
+                          <>
+                            At {fmtNum(validWhatIf)} {unit}s your book is{" "}
+                            <span className={pnlClass(totalAtMark)} style={{ fontWeight: 700 }}>
+                              {totalAtMark >= 0 ? "+" : ""}
+                              {fmtMoney(totalAtMark)}
+                            </span>
+                            . The reckoning below breaks it out by counterparty.
+                          </>
+                        ) : (
+                          <span style={{ color: "var(--chalk-faint)" }}>
+                            No exposure yet — trade on a ladder or log an open-outcry trade.
+                          </span>
+                        )
+                      ) : (
+                        <span style={{ color: "var(--chalk-faint)" }}>
+                          Type or drag a settlement to see your P&amp;L and who&apos;d owe whom.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="stat-row">
                 <div className="stat">
