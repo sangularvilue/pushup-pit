@@ -23,6 +23,7 @@ import {
   type Kind,
   type OrderSide,
   type PitEvent,
+  type Side,
   type Trade,
 } from "@/lib/types";
 
@@ -30,6 +31,7 @@ interface Bundle {
   event: PitEvent;
   books: BookDoc[];
   fills: Fill[];
+  myManual: Trade[];
   names: Record<string, string>;
   me: string;
   isAdmin: boolean;
@@ -65,6 +67,15 @@ export default function EventDesk({
   const [settleStr, setSettleStr] = useState("");
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // manual (open-outcry) trade ticket
+  const [otcSide, setOtcSide] = useState<Side>("buy");
+  const [otcKind, setOtcKind] = useState<Kind>("future");
+  const [otcQty, setOtcQty] = useState("1");
+  const [otcPrice, setOtcPrice] = useState("");
+  const [otcStrike, setOtcStrike] = useState("");
+  const [otcParty, setOtcParty] = useState("");
+  const [otcErr, setOtcErr] = useState("");
+
   const refresh = useCallback(async () => {
     try {
       const r = await fetch(`/api/events/${id}`);
@@ -96,8 +107,10 @@ export default function EventDesk({
   const selectedBook =
     books.find((b) => b.market.id === selectedMarketId) ?? books[0] ?? null;
 
-  /* my fills, in the shape the payoff math eats */
-  const myTrades = useMemo<Trade[]>(
+  const myManual = useMemo(() => bundle?.myManual ?? [], [bundle]);
+
+  /* my on-exchange fills, in the shape the payoff math eats */
+  const myFillTrades = useMemo<Trade[]>(
     () =>
       fills
         .filter((f) => f.buyerId === me || f.sellerId === me)
@@ -113,6 +126,33 @@ export default function EventDesk({
         })),
     [fills, me, names]
   );
+
+  // exposure = on-exchange fills + hand-logged open-outcry trades
+  const otcIds = useMemo(() => new Set(myManual.map((t) => t.id)), [myManual]);
+  const myTrades = useMemo<Trade[]>(
+    () => [...myFillTrades, ...myManual],
+    [myFillTrades, myManual]
+  );
+
+  // live preview of the open-outcry ticket on the exposure chart
+  const draftTrade = useMemo<Trade | null>(() => {
+    const q = Number(otcQty);
+    const p = Number(otcPrice);
+    const k = Number(otcStrike);
+    if (otcPrice.trim() === "" || !Number.isFinite(p)) return null;
+    if (!Number.isFinite(q) || q <= 0) return null;
+    if (otcKind !== "future" && (otcStrike.trim() === "" || !Number.isFinite(k))) return null;
+    return {
+      id: "__draft__",
+      side: otcSide,
+      kind: otcKind,
+      qty: q,
+      price: p,
+      strike: otcKind === "future" ? undefined : k,
+      counterparty: otcParty.trim() || "(pending)",
+      ts: 0,
+    };
+  }, [otcSide, otcKind, otcQty, otcPrice, otcStrike, otcParty]);
 
   const whatIf = whatIfStr.trim() === "" ? null : Number(whatIfStr);
   const validWhatIf = whatIf != null && Number.isFinite(whatIf) ? whatIf : null;
@@ -194,6 +234,50 @@ export default function EventDesk({
   function cancelOrder(orderId: string) {
     if (!selectedBook) return;
     act(() => fetch(`/api/markets/${selectedBook.market.id}/orders/${orderId}`, { method: "DELETE" }));
+  }
+
+  async function logManualTrade(e: React.FormEvent) {
+    e.preventDefault();
+    setOtcErr("");
+    if (!draftTrade) {
+      setOtcErr("Fill in the ticket — quantity, price, and counterparty.");
+      return;
+    }
+    const data = (await act(() =>
+      fetch(`/api/events/${id}/manual`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          side: otcSide,
+          kind: otcKind,
+          qty: Number(otcQty),
+          price: Number(otcPrice),
+          strike: otcKind === "future" ? undefined : Number(otcStrike),
+          counterparty: otcParty,
+        }),
+      })
+    )) as { trade?: Trade } | null;
+    if (data?.trade) {
+      setOtcPrice("");
+      setOtcStrike("");
+      setOtcQty("1");
+      setOtcParty("");
+      setOtcErr("");
+    } else if (actionErr) {
+      setOtcErr(actionErr);
+    }
+  }
+
+  function cancelTicket() {
+    setOtcPrice("");
+    setOtcStrike("");
+    setOtcQty("1");
+    setOtcParty("");
+    setOtcErr("");
+  }
+
+  function deleteManual(tradeId: string) {
+    act(() => fetch(`/api/events/${id}/manual/${tradeId}`, { method: "DELETE" }));
   }
 
   async function registerMarket(e: React.FormEvent) {
@@ -482,6 +566,158 @@ export default function EventDesk({
                 </div>
               </div>
 
+              {!settled && (
+                <form className="ticket" onSubmit={logManualTrade}>
+                  <div className="ticket-head">
+                    <span className="ticket-title">Log Open-Outcry Trade</span>
+                    <span className="num" style={{ fontSize: 10, color: "var(--ink-soft)" }}>
+                      OTC
+                    </span>
+                  </div>
+                  <div className="ticket-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div className="num" style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+                      Traded out loud in the pit? Record it here and it folds into your exposure below.
+                    </div>
+                    <div className="side-toggle">
+                      <button
+                        type="button"
+                        className={`btn btn-buy ${otcSide === "buy" ? "active" : ""}`}
+                        onClick={() => setOtcSide("buy")}
+                      >
+                        Bought
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-sell ${otcSide === "sell" ? "active" : ""}`}
+                        onClick={() => setOtcSide("sell")}
+                      >
+                        Sold
+                      </button>
+                    </div>
+                    <div className="form-row">
+                      <div className="field">
+                        <label className="flabel">Instrument</label>
+                        <select className="finput" value={otcKind} onChange={(e) => setOtcKind(e.target.value as Kind)}>
+                          <option value="future">Outright</option>
+                          <option value="call">Call</option>
+                          <option value="put">Put</option>
+                          <option value="straddle">Straddle</option>
+                        </select>
+                      </div>
+                      <div className="field">
+                        <label className="flabel">Qty</label>
+                        <input className="finput" inputMode="decimal" value={otcQty} onChange={(e) => setOtcQty(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      {otcKind !== "future" && (
+                        <div className="field">
+                          <label className="flabel">Strike</label>
+                          <input
+                            className="finput"
+                            inputMode="decimal"
+                            placeholder="93"
+                            value={otcStrike}
+                            onChange={(e) => setOtcStrike(e.target.value)}
+                          />
+                        </div>
+                      )}
+                      <div className="field">
+                        <label className="flabel">{otcKind === "future" ? "Price" : "Premium"}</label>
+                        <input
+                          className="finput"
+                          inputMode="decimal"
+                          placeholder={otcKind === "future" ? "90" : "7"}
+                          value={otcPrice}
+                          onChange={(e) => setOtcPrice(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="field">
+                      <label className="flabel">Counterparty</label>
+                      <input
+                        className="finput"
+                        placeholder="Adam"
+                        value={otcParty}
+                        onChange={(e) => setOtcParty(e.target.value)}
+                      />
+                    </div>
+                    {draftTrade && (
+                      <div
+                        className="num"
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: otcSide === "buy" ? "var(--up-deep)" : "var(--down-deep)",
+                        }}
+                      >
+                        {otcSide === "buy" ? "BOUGHT" : "SOLD"} {otcQty} ×{" "}
+                        {otcKind === "future"
+                          ? `OUTRIGHT @ ${otcPrice}`
+                          : `${otcStrike} ${otcKind.toUpperCase()} @ ${otcPrice}`}
+                        {otcParty.trim() ? ` ${otcSide === "buy" ? "from" : "to"} ${otcParty.trim()}` : ""}
+                        {" — previewed on the chart →"}
+                      </div>
+                    )}
+                    {otcErr && <div className="error-text">{otcErr}</div>}
+                    {draftTrade ? (
+                      <div className="form-row">
+                        <button type="submit" className={`btn ${otcSide === "buy" ? "btn-buy" : "btn-sell"}`} style={{ flex: 2 }} disabled={busy}>
+                          Confirm
+                        </button>
+                        <button type="button" className="btn btn-ink" style={{ flex: 1 }} onClick={cancelTicket}>
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button type="submit" className="btn btn-ink" disabled={busy}>
+                        Log trade
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
+
+              {myManual.length > 0 && (
+                <div className="panel">
+                  <div className="panel-head">
+                    <span className="panel-title">My Open-Outcry Trades</span>
+                    <span className="subtle">{myManual.length} logged</span>
+                  </div>
+                  <div className="panel-body" style={{ overflowX: "auto" }}>
+                    <table className="blotter">
+                      <tbody>
+                        {[...myManual]
+                          .sort((a, b) => b.ts - a.ts)
+                          .map((t) => (
+                            <tr key={t.id}>
+                              <td>
+                                <span className={`pill pill-${t.side}`}>{t.side === "buy" ? "bot" : "sold"}</span>
+                              </td>
+                              <td className="r">{fmtNum(t.qty)}</td>
+                              <td>
+                                <span className="kind-tag">
+                                  {t.kind === "future"
+                                    ? `OUTRIGHT @ ${fmtNum(t.price)}`
+                                    : `${fmtNum(t.strike ?? 0)} ${t.kind.toUpperCase()} @ ${fmtNum(t.price)}`}
+                                </span>
+                              </td>
+                              <td>{t.counterparty}</td>
+                              <td>
+                                {!settled && (
+                                  <button className="del-btn" title="Remove this logged trade" onClick={() => deleteManual(t.id)}>
+                                    ✕
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               {isAdmin && !settled && (
                 <div className="panel">
                   <div className="panel-head">
@@ -567,6 +803,7 @@ export default function EventDesk({
                     unit={unit}
                     settlement={settled ? event.settlement : null}
                     whatIf={settled ? null : validWhatIf}
+                    draft={settled ? null : draftTrade}
                   />
                   {!settled && myTrades.length > 0 && (
                     <input
@@ -652,6 +889,9 @@ export default function EventDesk({
                                     {trade.kind === "future"
                                       ? `OUTRIGHT @ ${fmtNum(trade.price)}`
                                       : `${fmtNum(trade.strike ?? 0)} ${trade.kind.toUpperCase()} @ ${fmtNum(trade.price)}`}
+                                    {otcIds.has(trade.id) && (
+                                      <span style={{ opacity: 0.5 }}> · otc</span>
+                                    )}
                                   </span>
                                   <span className={`amt ${pnlClass(pnl)}`}>
                                     {pnl >= 0 ? "+" : ""}

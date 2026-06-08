@@ -4,6 +4,7 @@ import { isAdminEmail } from "@/lib/admin";
 import {
   deleteEvent,
   getEvent,
+  getManualTrades,
   listBooks,
   listFills,
   resolveNames,
@@ -21,7 +22,11 @@ export async function GET(
   const { id } = await params;
   const ev = await getEvent(id);
   if (!ev) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const [books, fills] = await Promise.all([listBooks(id), listFills(id)]);
+  const [books, fills, myManual] = await Promise.all([
+    listBooks(id),
+    listFills(id),
+    getManualTrades(id, user.id),
+  ]);
   const ids = new Set<string>();
   for (const b of books) for (const o of b.orders) ids.add(o.userId);
   for (const f of fills) {
@@ -33,6 +38,7 @@ export async function GET(
     event: ev,
     books,
     fills,
+    myManual,
     names,
     me: user.id,
     isAdmin: isAdminEmail(user.email),

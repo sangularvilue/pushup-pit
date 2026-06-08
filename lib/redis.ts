@@ -17,3 +17,5 @@ export const marketKey = (marketId: string) => `pushups:market:${marketId}`; // 
 export const tapeKey = () => `pushups:tape`; // list of TapeEntry JSON (capped)
 export const resetKey = (token: string) => `pushups:reset:${token}`;
 export const namesKey = () => `pushups:names`; // hash userId → displayName (poll-path cache)
+export const manualKey = (eventId: string, userId: string) =>
+  `pushups:event:${eventId}:manual:${userId}`; // your off-exchange (open-outcry) trades

@@ -6,6 +6,7 @@ import {
   eventKey,
   eventMarketsKey,
   eventsKey,
+  manualKey,
   marketKey,
   namesKey,
   redis,
@@ -21,7 +22,9 @@ import {
   type Order,
   type OrderSide,
   type PitEvent,
+  type Side,
   type TapeEntry,
+  type Trade,
 } from "./types";
 
 function parse<T>(raw: T | string | null): T | null {
@@ -443,4 +446,68 @@ export async function resolveNames(userIds: string[]): Promise<Record<string, st
 /** Keep the poll-path name cache in sync whenever a display name is set. */
 export async function cacheDisplayName(userId: string, displayName: string): Promise<void> {
   await redis.hset(namesKey(), { [userId]: displayName });
+}
+
+/* ── manual (open-outcry) trades ────────────────────────────── */
+
+const KINDS: Kind[] = ["future", "call", "put", "straddle"];
+const SIDES: Side[] = ["buy", "sell"];
+
+/** Trades a user did off-exchange (in the actual pit) and logs by hand so
+ * their exposure here reflects everything, not just on-site fills. */
+export async function getManualTrades(eventId: string, userId: string): Promise<Trade[]> {
+  return parse<Trade[]>(await redis.get(manualKey(eventId, userId))) || [];
+}
+
+async function saveManualTrades(eventId: string, userId: string, trades: Trade[]): Promise<void> {
+  await redis.set(manualKey(eventId, userId), JSON.stringify(trades));
+}
+
+export function sanitizeManualTrade(raw: unknown): Trade | { error: string } {
+  const o = (raw || {}) as Partial<Trade>;
+  const kind = KINDS.includes(o.kind as Kind) ? (o.kind as Kind) : null;
+  const side = SIDES.includes(o.side as Side) ? (o.side as Side) : null;
+  const qty = Number(o.qty);
+  const price = Number(o.price);
+  const strike = Number(o.strike);
+  if (!side) return { error: "Pick buy or sell." };
+  if (!kind) return { error: "Pick an instrument." };
+  if (!Number.isFinite(qty) || qty <= 0) return { error: "Quantity must be positive." };
+  if (!Number.isFinite(price)) return { error: kind === "future" ? "Enter a price." : "Enter a premium." };
+  if (kind !== "future" && !Number.isFinite(strike)) return { error: "Enter a strike." };
+  const counterparty = String(o.counterparty || "").trim().slice(0, 60);
+  if (!counterparty) return { error: "Who did you trade with?" };
+  return {
+    id: uuid(),
+    side,
+    kind,
+    qty,
+    price,
+    strike: kind === "future" ? undefined : strike,
+    counterparty,
+    note: typeof o.note === "string" ? o.note.slice(0, 200) : undefined,
+    ts: Date.now(),
+  };
+}
+
+export async function addManualTrade(
+  eventId: string,
+  userId: string,
+  raw: unknown
+): Promise<Trade | { error: string }> {
+  const t = sanitizeManualTrade(raw);
+  if ("error" in t) return t;
+  const trades = await getManualTrades(eventId, userId);
+  trades.push(t);
+  await saveManualTrades(eventId, userId, trades);
+  return t;
+}
+
+export async function deleteManualTrade(
+  eventId: string,
+  userId: string,
+  tradeId: string
+): Promise<void> {
+  const trades = await getManualTrades(eventId, userId);
+  await saveManualTrades(eventId, userId, trades.filter((t) => t.id !== tradeId));
 }
